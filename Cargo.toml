@@ -1,0 +1,8 @@
+[package]
+name = "parallel"
+version = "0.1.0"
+authors = ["Ivan Petkov <ivanppetkov@gmail.com>"]
+license = "MIT"
+publish = false
+
+[dependencies]
