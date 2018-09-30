@@ -7,3 +7,5 @@ publish = false
 
 [dependencies]
 rand = "0.5.5"
+log = "0.4.5"
+env_logger = "0.5.13"

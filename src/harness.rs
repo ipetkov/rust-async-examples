@@ -158,7 +158,7 @@ pub fn run_worker_with_values<W, S, R>(
             for _ in 0..num_clients {
                 match my_rx.recv() {
                     Some(Response { x, y, result }) => {
-                        println!("{}: x: {}, y: {}, result = {}", name, x, y, result);
+                        trace!("{}: x: {}, y: {}, result = {}", name, x, y, result);
                     },
                     None => break 'outer,
                 }
@@ -166,8 +166,7 @@ pub fn run_worker_with_values<W, S, R>(
         }
     }));
 
-    println!();
-    println!("running {}", name);
+    println!("\nrunning {}", name);
 
     // Synchronize with our "client" threads
     barrier.wait();

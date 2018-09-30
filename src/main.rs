@@ -3,6 +3,8 @@
 
 #![deny(missing_docs)]
 
+extern crate env_logger;
+#[macro_use] extern crate log;
 extern crate rand;
 
 pub mod harness;
@@ -10,5 +12,7 @@ pub mod sequential;
 pub mod worker;
 
 fn main() {
+    env_logger::init();
+
     sequential::run();
 }
