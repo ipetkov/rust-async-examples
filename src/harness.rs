@@ -59,7 +59,7 @@ pub fn run_worker<W, FS, S, R>(
           S: 'static + WorkerSender + Send,
           R: 'static + WorkerReceiver + Send,
 {
-    const DATA_SIZE: usize = 1000;
+    const DATA_SIZE: usize = 128;
     const NUM_CLIENTS: usize = 4;
     const RECEIVER_SLEEP_MS: u64 = 10;
 
