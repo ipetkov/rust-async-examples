@@ -5,14 +5,17 @@
 
 extern crate env_logger;
 #[macro_use] extern crate log;
+extern crate num_cpus;
 extern crate rand;
 
 pub mod harness;
 pub mod sequential;
+pub mod threadpool;
 pub mod worker;
 
 fn main() {
     env_logger::init();
 
     sequential::run();
+    threadpool::run();
 }
