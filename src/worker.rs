@@ -1,6 +1,9 @@
 //! This module defines the interfaces that will be used by various
 //! parallel/async worker implementations.
 
+use futures::sink;
+use futures::stream;
+use futures::sync::mpsc::{Sender as FuturesSender, Receiver as FuturesReceiver};
 use std::sync::mpsc::{Sender, Receiver};
 
 /// Represents a request that is send to the worker for processing.
@@ -45,6 +48,12 @@ impl WorkerSender for Sender<Request> {
     }
 }
 
+impl WorkerSender for sink::Wait<FuturesSender<Request>> {
+    fn send(&mut self, request: Request) {
+        let _ = (*self).send(request);
+    }
+}
+
 /// Abstraction over the Receiver end of different channel implementations.
 ///
 /// The test harness will use this abstraction to receive data over from the worker.
@@ -64,6 +73,12 @@ impl<'a, T: WorkerReceiver> WorkerReceiver for &'a mut T {
 impl WorkerReceiver for Receiver<Response> {
     fn recv(&mut self) -> Option<Response> {
         (*self).recv().ok()
+    }
+}
+
+impl WorkerReceiver for stream::Wait<FuturesReceiver<Response>> {
+    fn recv(&mut self) -> Option<Response> {
+        self.next().and_then(Result::ok)
     }
 }
 

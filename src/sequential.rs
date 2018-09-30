@@ -45,7 +45,7 @@ pub fn run(seed: [u8; 32]) {
     run_worker(
         seed,
         SequentialWorker::new(),
-        harness_tx,
+        move || harness_tx.clone(),
         worker_rx,
         worker_tx,
         harness_rx,

@@ -29,25 +29,34 @@ pub struct RunData {
 /// * `seed` - The seed to use when instantiating the random number generator.
 /// Useful for ensuring that different tests run with the same exact data.
 /// * `worker` - The `Worker` implementation which should be run.
-/// * `my_tx` - A `WorkSender` implementation which the test harness will use
-/// to submit requests to the worker. This type must be `Clone`, `Send`, and
-/// `'static` so that it can be sent to an arbitrary number of client threads.
+/// * `get_my_tx` - A closure which returns a new `WorkSender` implementation copy
+/// which the test harness will use to submit requests to the worker.
+///
+/// Usually this will just be a call to `.clone()`. This closure must be `'static`
+/// to ensure that it doesn't contain any references to senders on the stack.
+/// In other words, once it gets dropped, we don't want to accidentally have an
+/// extra copy of the `WorkSender` laying around on the stack, which could prevent
+/// workers from terminating.
+///
+/// The `WorkSender` type must be `Send`, and `'static` so that it can be sent to
+/// an arbitrary number of client threads.
 /// * `worker_rx` - The receiver handle the worker will use to receive request
 /// data.
 /// * `worker_tx` - The sender handle the worker will use to send back
 /// completed requests.
 /// * `my_rx` - The `WorkReceiver` handle which the test harness will use to
 /// consume the worker responses.
-pub fn run_worker<W, S, R>(
+pub fn run_worker<W, FS, S, R>(
     seed: [u8; 32],
     worker: W,
-    my_tx: S,
+    get_my_tx: FS,
     worker_rx: W::RequestReceiver,
     worker_tx: W::ResponseSender,
     my_rx: R,
 )
     where W: Worker,
-          S: 'static + WorkerSender + Clone + Send,
+          FS: 'static + Fn() -> S,
+          S: 'static + WorkerSender + Send,
           R: 'static + WorkerReceiver + Send,
 {
     const DATA_SIZE: usize = 1000;
@@ -70,7 +79,7 @@ pub fn run_worker<W, S, R>(
 
     run_worker_with_values(
         worker,
-        my_tx,
+        get_my_tx,
         worker_rx,
         Duration::from_millis(RECEIVER_SLEEP_MS),
         worker_tx,
@@ -84,9 +93,16 @@ pub fn run_worker<W, S, R>(
 ///
 /// # Parameters
 /// * `worker` - The `Worker` implementation which should be run.
-/// * `my_tx` - A `WorkSender` implementation which the test harness will use
-/// to submit requests to the worker. This type must be `Clone`, `Send`, and
-/// `'static` so that it can be sent to an arbitrary number of client threads.
+/// * `get_my_tx` - A closure which returns a new `WorkSender` implementation copy
+/// which the test harness will use to submit requests to the worker.
+///
+/// Usually this will just be a call to `.clone()`. This closure must be `'static`
+/// to ensure that it doesn't contain any references to senders on the stack.
+/// In other words, once it gets dropped, we don't want to accidentally have an
+/// extra copy of the `WorkSender` laying around on the stack, which could prevent
+/// workers from terminating.
+///
+/// The `WorkSender` type must be `Send`, and `'static` so that it can be sent to
 /// * `worker_rx` - The receiver handle the worker will use to receive request
 /// data.
 /// * `receiver_sleep` - The receiver of the worker responses will simulate
@@ -101,9 +117,9 @@ pub fn run_worker<W, S, R>(
 ///
 /// # Panics
 /// `run_data` must be evenly divisible by `num_clients` or a panic will be raised.
-pub fn run_worker_with_values<W, S, R>(
+pub fn run_worker_with_values<W, FS, S, R>(
     worker: W,
-    my_tx: S,
+    get_my_tx: FS,
     worker_rx: W::RequestReceiver,
     receiver_sleep: Duration,
     worker_tx: W::ResponseSender,
@@ -112,7 +128,8 @@ pub fn run_worker_with_values<W, S, R>(
     mut run_data: Vec<RunData>,
 )
     where W: Worker,
-          S: 'static + WorkerSender + Clone + Send,
+          FS: 'static + Fn() -> S,
+          S: 'static + WorkerSender + Send,
           R: 'static + WorkerReceiver + Send,
 {
     // Assert that we can split off our data to our clients evenly
@@ -128,7 +145,7 @@ pub fn run_worker_with_values<W, S, R>(
     for _ in 0..num_clients {
         let barrier_clone = barrier.clone();
         let client_data = run_data.split_off(client_data_size);
-        let mut my_tx = my_tx.clone();
+        let mut my_tx = get_my_tx();
 
         let jh = thread::spawn(move || {
             barrier_clone.wait();
@@ -148,7 +165,7 @@ pub fn run_worker_with_values<W, S, R>(
     // Ensure we don't have any extra copies of the sender
     // hanging around, or else our worker will never know
     // there is no more data to process.
-    drop(my_tx);
+    drop(get_my_tx);
 
     // Spawn the "receiver" thread which will listen for the responses
     let barrier_receiver = barrier.clone();

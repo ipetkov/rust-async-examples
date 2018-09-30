@@ -4,10 +4,12 @@
 #![deny(missing_docs)]
 
 extern crate env_logger;
+extern crate futures;
 #[macro_use] extern crate log;
 extern crate num_cpus;
 extern crate rand;
 extern crate rayon;
+extern crate tokio;
 
 use rand::RngCore;
 
@@ -15,6 +17,7 @@ pub mod harness;
 pub mod par_iter;
 pub mod sequential;
 pub mod threadpool;
+pub mod tokio_worker;
 pub mod worker;
 
 fn main() {
@@ -29,4 +32,6 @@ fn main() {
     sequential::run(seed);
     threadpool::run(seed);
     par_iter::run(seed);
+    tokio_worker::run_current_thread(seed);
+    tokio_worker::run(seed);
 }
