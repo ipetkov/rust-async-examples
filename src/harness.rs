@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 use worker::{Request, Response, Worker, WorkerReceiver, WorkerSender};
 
 /// The representation of a single request which should be sent to a worker.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct RunData {
     /// The amount of time to sleep before sending the request, simulating
     /// a potentially slow client.
@@ -49,7 +50,7 @@ pub fn run_worker<W, S, R>(
     const NUM_CLIENTS: usize = 4;
     const RECEIVER_SLEEP_MS: u64 = 10;
 
-    let dist_sleep_ms = Uniform::new(1, 100);
+    let dist_sleep_ms = Uniform::new(1, 25);
     let dist_x = Uniform::new(0, 12);
     let dist_y = Uniform::new(1, 1000);
 
@@ -140,12 +141,17 @@ pub fn run_worker_with_values<W, S, R>(
         join_handles.push(jh);
     }
 
+    // Ensure we don't have any extra copies of the sender
+    // hanging around, or else our worker will never know
+    // there is no more data to process.
+    drop(my_tx);
+
     // Spawn the "receiver" thread which will listen for the responses
     let barrier_receiver = barrier.clone();
     join_handles.push(thread::spawn(move || {
         barrier_receiver.wait();
 
-        loop {
+        'outer: loop {
             // Simulate reading the data in batches
             thread::sleep(receiver_sleep);
 
@@ -154,11 +160,14 @@ pub fn run_worker_with_values<W, S, R>(
                     Some(Response { x, y, result }) => {
                         println!("{}: x: {}, y: {}, result = {}", name, x, y, result);
                     },
-                    None => break,
+                    None => break 'outer,
                 }
             }
         }
     }));
+
+    println!();
+    println!("running {}", name);
 
     // Synchronize with our "client" threads
     barrier.wait();
@@ -167,7 +176,7 @@ pub fn run_worker_with_values<W, S, R>(
     worker.do_work(worker_rx, worker_tx);
     let end = Instant::now();
 
-    println!("\n{} took {:#?} to run to completion", name, end - start);
+    println!("{} took {:#?} to run to completion", name, end - start);
 
     // Ensure all of our client threads are shut down, so they don't interfere
     // with future runs

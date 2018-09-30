@@ -1,9 +1,12 @@
 //! This module defines the interfaces that will be used by various
 //! parallel/async worker implementations.
 
+use std::sync::mpsc::{Sender, Receiver};
+
 /// Represents a request that is send to the worker for processing.
 ///
 /// The worker should compute `x! / y`
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Request {
     /// The value whose factorial should be computed.
     pub x: usize,
@@ -12,6 +15,7 @@ pub struct Request {
 }
 
 /// Represents a unit of work completed by the worker.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Response {
     /// The value whose factorial should be computed.
     pub x: usize,
@@ -29,6 +33,18 @@ pub trait WorkerSender {
     fn send(&mut self, request: Request);
 }
 
+impl<'a, T: WorkerSender> WorkerSender for &'a mut T {
+    fn send(&mut self, request: Request) {
+        (**self).send(request);
+    }
+}
+
+impl WorkerSender for Sender<Request> {
+    fn send(&mut self, request: Request) {
+        let _ = (*self).send(request);
+    }
+}
+
 /// Abstraction over the Receiver end of different channel implementations.
 ///
 /// The test harness will use this abstraction to receive data over from the worker.
@@ -37,6 +53,18 @@ pub trait WorkerReceiver {
     ///
     /// When no more data is available, `None` should be returned.
     fn recv(&mut self) -> Option<Response>;
+}
+
+impl<'a, T: WorkerReceiver> WorkerReceiver for &'a mut T {
+    fn recv(&mut self) -> Option<Response> {
+        (**self).recv()
+    }
+}
+
+impl WorkerReceiver for Receiver<Response> {
+    fn recv(&mut self) -> Option<Response> {
+        (*self).recv().ok()
+    }
 }
 
 /// An interface which represents some type of worker which will receive some input,
@@ -60,4 +88,24 @@ pub trait Worker {
     /// While requests continue to come through `rx`, the worker should process
     /// the requests and send a response through `tx`.
     fn do_work(self, rx: Self::RequestReceiver, tx: Self::ResponseSender);
+}
+
+/// Computes `x! / y` using a provided `Request`.
+///
+/// # Panics
+/// Panics if `request.y == 0`.
+pub fn compute_response(request: Request) -> Response {
+    assert_ne!(request.y, 0, "divisor cannot be 0!");
+
+    let mut fac = 1;
+
+    for i in 1..request.x {
+        fac *= i;
+    }
+
+    Response {
+        x: request.x,
+        y: request.y,
+        result: fac / request.y,
+    }
 }

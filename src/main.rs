@@ -6,8 +6,9 @@
 extern crate rand;
 
 pub mod harness;
+pub mod sequential;
 pub mod worker;
 
 fn main() {
-    println!("Hello, world!");
+    sequential::run();
 }
