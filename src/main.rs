@@ -3,6 +3,7 @@
 
 #![deny(missing_docs)]
 
+pub mod harness;
 pub mod worker;
 
 fn main() {

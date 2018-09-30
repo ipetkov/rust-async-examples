@@ -1,0 +1,119 @@
+//! This module defines the test harness which will drive each `Worker`
+//! implementation and time how long it takes to run.
+
+use worker::{Request, Response, Worker, WorkerReceiver, WorkerSender};
+use std::sync::{Arc, Barrier};
+use std::thread;
+use std::time::{Duration, Instant};
+
+/// The representation of a single request which should be sent to a worker.
+pub struct RunData {
+    /// The amount of time to sleep before sending the request, simulating
+    /// a potentially slow client.
+    pub sleep: Duration,
+    /// The `x` value of a `Request`.
+    pub x: usize,
+    /// The `y` value of a `Request`.
+    pub y: usize,
+}
+
+/// Runs the provided worker and simulates reader/writer clients of its data.
+///
+/// # Parameters
+/// * `worker` - The `Worker` implementation which should be run.
+/// * `my_tx` - A `WorkSender` implementation which the test harness will use
+/// to submit requests to the worker. This type must be `Clone`, `Send`, and
+/// `'static` so that it can be sent to an arbitrary number of client threads.
+/// * `worker_rx` - The receiver handle the worker will use to receive request
+/// data.
+/// * `receiver_sleep` - The receiver of the worker responses will simulate
+/// batching data and will sleep for this long in between each batch.
+/// * `worker_tx` - The sender handle the worker will use to send back
+/// completed requests.
+/// * `my_rx` - The `WorkReceiver` handle which the test harness will use to
+/// consume the worker responses.
+/// * `num_clients` - The number of client worker threads to use for submitting
+/// requests in parallel to the worker.
+/// * `run_data` - The data to be used for this test run.
+///
+/// # Panics
+/// `run_data` must be evenly divisible by `num_clients` or a panic will be raised.
+pub fn run_worker_with_values<W, S, R>(
+    worker: W,
+    my_tx: S,
+    worker_rx: W::RequestReceiver,
+    receiver_sleep: Duration,
+    worker_tx: W::ResponseSender,
+    mut my_rx: R,
+    num_clients: usize,
+    mut run_data: Vec<RunData>,
+)
+    where W: Worker,
+          S: 'static + WorkerSender + Clone + Send,
+          R: 'static + WorkerReceiver + Send,
+{
+    // Assert that we can split off our data to our clients evenly
+    let run_data_len = run_data.len();
+    assert_eq!(run_data_len % num_clients, 0);
+    let client_data_size = run_data_len / num_clients;
+
+    let name = worker.name();
+    let barrier = Arc::new(Barrier::new(num_clients + 2));
+    let mut join_handles = Vec::with_capacity(num_clients + 1);
+
+    // Spawn a number of "client" threads which sleep in between
+    for _ in 0..num_clients {
+        let barrier_clone = barrier.clone();
+        let client_data = run_data.split_off(client_data_size);
+        let mut my_tx = my_tx.clone();
+
+        let jh = thread::spawn(move || {
+            barrier_clone.wait();
+
+            for data in client_data {
+                thread::sleep(data.sleep);
+                my_tx.send(Request {
+                    x: data.x,
+                    y: data.y
+                });
+            }
+        });
+
+        join_handles.push(jh);
+    }
+
+    // Spawn the "receiver" thread which will listen for the responses
+    let barrier_receiver = barrier.clone();
+    join_handles.push(thread::spawn(move || {
+        barrier_receiver.wait();
+
+        loop {
+            // Simulate reading the data in batches
+            thread::sleep(receiver_sleep);
+
+            for _ in 0..num_clients {
+                match my_rx.recv() {
+                    Some(Response { x, y, result }) => {
+                        println!("{}: x: {}, y: {}, result = {}", name, x, y, result);
+                    },
+                    None => break,
+                }
+            }
+        }
+    }));
+
+    // Synchronize with our "client" threads
+    barrier.wait();
+
+    let start = Instant::now();
+    worker.do_work(worker_rx, worker_tx);
+    let end = Instant::now();
+
+    println!("\n{} took {:#?} to run to completion", name, end - start);
+
+    // Ensure all of our client threads are shut down, so they don't interfere
+    // with future runs
+    for jh in join_handles {
+        jh.join().expect("failed to join client thread");
+    }
+}
