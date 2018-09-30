@@ -7,10 +7,12 @@ extern crate env_logger;
 #[macro_use] extern crate log;
 extern crate num_cpus;
 extern crate rand;
+extern crate rayon;
 
 use rand::RngCore;
 
 pub mod harness;
+pub mod par_iter;
 pub mod sequential;
 pub mod threadpool;
 pub mod worker;
@@ -24,6 +26,7 @@ fn main() {
         seed
     };
 
-    sequential::run(seed.clone());
-    threadpool::run(seed.clone());
+    sequential::run(seed);
+    threadpool::run(seed);
+    par_iter::run(seed);
 }

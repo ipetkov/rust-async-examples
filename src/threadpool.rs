@@ -9,7 +9,7 @@ use worker::{compute_response, Request, Response, Worker};
 
 /// A `Worker` implementation which uses its own blocking threadpool
 /// to process data.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ThreadPoolWorker(());
 
 impl ThreadPoolWorker {

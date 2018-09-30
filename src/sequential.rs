@@ -5,7 +5,7 @@ use std::sync::mpsc::{channel, Sender, Receiver};
 use worker::{compute_response, Request, Response, Worker};
 
 /// A `Worker` implementation which sequentially processes data.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SequentialWorker(());
 
 impl SequentialWorker {
