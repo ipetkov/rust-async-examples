@@ -98,11 +98,12 @@ fn thread_worker(rx: Receiver<Request>, tx: Sender<Response>) {
 }
 
 /// Set up and run the test harness for a `ThreadPoolWorker`.
-pub fn run() {
+pub fn run(seed: [u8; 32]) {
     let (harness_tx, worker_rx) = channel();
     let (worker_tx, harness_rx) = channel();
 
     run_worker(
+        seed,
         ThreadPoolWorker::new(),
         harness_tx,
         worker_rx,

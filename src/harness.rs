@@ -1,9 +1,10 @@
 //! This module defines the test harness which will drive each `Worker`
 //! implementation and time how long it takes to run.
 
+use rand::SeedableRng;
 use rand::distributions::Distribution;
 use rand::distributions::uniform::Uniform;
-use rand::thread_rng;
+use rand::rngs::StdRng;
 use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -25,6 +26,8 @@ pub struct RunData {
 /// clients of its data.
 ///
 /// # Parameters
+/// * `seed` - The seed to use when instantiating the random number generator.
+/// Useful for ensuring that different tests run with the same exact data.
 /// * `worker` - The `Worker` implementation which should be run.
 /// * `my_tx` - A `WorkSender` implementation which the test harness will use
 /// to submit requests to the worker. This type must be `Clone`, `Send`, and
@@ -36,6 +39,7 @@ pub struct RunData {
 /// * `my_rx` - The `WorkReceiver` handle which the test harness will use to
 /// consume the worker responses.
 pub fn run_worker<W, S, R>(
+    seed: [u8; 32],
     worker: W,
     my_tx: S,
     worker_rx: W::RequestReceiver,
@@ -54,7 +58,7 @@ pub fn run_worker<W, S, R>(
     let dist_x = Uniform::new(0, 12);
     let dist_y = Uniform::new(1, 1000);
 
-    let rng = &mut thread_rng();
+    let rng = &mut StdRng::from_seed(seed);
 
     let data = (0..DATA_SIZE).into_iter()
         .map(|_| RunData {

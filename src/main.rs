@@ -8,6 +8,8 @@ extern crate env_logger;
 extern crate num_cpus;
 extern crate rand;
 
+use rand::RngCore;
+
 pub mod harness;
 pub mod sequential;
 pub mod threadpool;
@@ -16,6 +18,12 @@ pub mod worker;
 fn main() {
     env_logger::init();
 
-    sequential::run();
-    threadpool::run();
+    let seed = {
+        let mut seed = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut seed);
+        seed
+    };
+
+    sequential::run(seed.clone());
+    threadpool::run(seed.clone());
 }
