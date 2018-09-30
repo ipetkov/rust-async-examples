@@ -6,3 +6,4 @@ license = "MIT"
 publish = false
 
 [dependencies]
+rand = "0.5.5"

@@ -3,6 +3,8 @@
 
 #![deny(missing_docs)]
 
+extern crate rand;
+
 pub mod harness;
 pub mod worker;
 

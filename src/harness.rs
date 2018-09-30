@@ -1,10 +1,13 @@
 //! This module defines the test harness which will drive each `Worker`
 //! implementation and time how long it takes to run.
 
-use worker::{Request, Response, Worker, WorkerReceiver, WorkerSender};
+use rand::distributions::Distribution;
+use rand::distributions::uniform::Uniform;
+use rand::thread_rng;
 use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::{Duration, Instant};
+use worker::{Request, Response, Worker, WorkerReceiver, WorkerSender};
 
 /// The representation of a single request which should be sent to a worker.
 pub struct RunData {
@@ -15,6 +18,61 @@ pub struct RunData {
     pub x: usize,
     /// The `y` value of a `Request`.
     pub y: usize,
+}
+
+/// Runs the provided worker with generated data, and simulates reader/writer
+/// clients of its data.
+///
+/// # Parameters
+/// * `worker` - The `Worker` implementation which should be run.
+/// * `my_tx` - A `WorkSender` implementation which the test harness will use
+/// to submit requests to the worker. This type must be `Clone`, `Send`, and
+/// `'static` so that it can be sent to an arbitrary number of client threads.
+/// * `worker_rx` - The receiver handle the worker will use to receive request
+/// data.
+/// * `worker_tx` - The sender handle the worker will use to send back
+/// completed requests.
+/// * `my_rx` - The `WorkReceiver` handle which the test harness will use to
+/// consume the worker responses.
+pub fn run_worker<W, S, R>(
+    worker: W,
+    my_tx: S,
+    worker_rx: W::RequestReceiver,
+    worker_tx: W::ResponseSender,
+    my_rx: R,
+)
+    where W: Worker,
+          S: 'static + WorkerSender + Clone + Send,
+          R: 'static + WorkerReceiver + Send,
+{
+    const DATA_SIZE: usize = 1000;
+    const NUM_CLIENTS: usize = 4;
+    const RECEIVER_SLEEP_MS: u64 = 10;
+
+    let dist_sleep_ms = Uniform::new(1, 100);
+    let dist_x = Uniform::new(0, 12);
+    let dist_y = Uniform::new(1, 1000);
+
+    let rng = &mut thread_rng();
+
+    let data = (0..DATA_SIZE).into_iter()
+        .map(|_| RunData {
+            sleep: Duration::from_millis(dist_sleep_ms.sample(rng)),
+            x: dist_x.sample(rng),
+            y: dist_y.sample(rng),
+        })
+        .collect();
+
+    run_worker_with_values(
+        worker,
+        my_tx,
+        worker_rx,
+        Duration::from_millis(RECEIVER_SLEEP_MS),
+        worker_tx,
+        my_rx,
+        NUM_CLIENTS,
+        data
+    );
 }
 
 /// Runs the provided worker and simulates reader/writer clients of its data.
