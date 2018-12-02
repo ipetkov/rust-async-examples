@@ -1,7 +1,7 @@
 //! This module provides a `Worker` implementation which sequentially processes data.
 
 use harness::run_worker;
-use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use worker::{compute_response, Request, Response, Worker};
 
 /// A `Worker` implementation which sequentially processes data.
@@ -31,7 +31,7 @@ impl Worker for SequentialWorker {
     fn do_work(self, rx: Self::RequestReceiver, tx: Self::ResponseSender) {
         while let Ok(req) = rx.recv() {
             if tx.send(compute_response(req)).is_err() {
-                break
+                break;
             }
         }
     }

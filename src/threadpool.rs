@@ -1,9 +1,9 @@
 //! This module provides a `Worker` implementation which uses its own
 //! blocking threadpool to process data.
 
-use num_cpus;
 use harness::run_worker;
-use std::sync::mpsc::{channel, Sender, Receiver};
+use num_cpus;
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use worker::{compute_response, Request, Response, Worker};
 
@@ -92,7 +92,7 @@ impl Worker for ThreadPoolWorker {
 fn thread_worker(rx: Receiver<Request>, tx: Sender<Response>) {
     while let Ok(req) = rx.recv() {
         if tx.send(compute_response(req)).is_err() {
-            break
+            break;
         }
     }
 }

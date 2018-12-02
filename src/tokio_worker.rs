@@ -1,10 +1,10 @@
 //! This module provides a `Worker` implementation which uses futures
 //! and tokio to perform work.
 
-use harness::run_worker;
-use futures::{Future, Sink, Stream};
 use futures::future::ok;
-use futures::sync::mpsc::{channel, Sender, Receiver};
+use futures::sync::mpsc::{channel, Receiver, Sender};
+use futures::{Future, Sink, Stream};
+use harness::run_worker;
 use tokio;
 use worker::{compute_response, Request, Response, Worker};
 
@@ -84,7 +84,8 @@ pub fn run_current_thread(seed: [u8; 32]) {
 }
 
 fn run_with_worker<W>(seed: [u8; 32], worker: W)
-    where W: Worker<RequestReceiver = Receiver<Request>, ResponseSender = Sender<Response>>
+where
+    W: Worker<RequestReceiver = Receiver<Request>, ResponseSender = Sender<Response>>,
 {
     // NB: by default futures channels reserve at least one slot per sender
     let (harness_tx, worker_rx) = channel(0);
@@ -100,9 +101,13 @@ fn run_with_worker<W>(seed: [u8; 32], worker: W)
     );
 }
 
-fn process(rx: Receiver<Request>, resp_tx: Sender<Response>) -> impl Future<Item = (), Error = ()> + 'static + Send {
+fn process(
+    rx: Receiver<Request>,
+    resp_tx: Sender<Response>,
+) -> impl Future<Item = (), Error = ()> + 'static + Send {
     // Process the input stream by computing the responses
-    let input_stream = rx.map(|req| ok(compute_response(req)))
+    let input_stream = rx
+        .map(|req| ok(compute_response(req)))
         .map_err(|_| ()) // Ignore any receive errors
         // Buffer unordered will allow up to N futures to execute
         // concurrently in the same runtime (i.e. if one future isn't
@@ -115,7 +120,8 @@ fn process(rx: Receiver<Request>, resp_tx: Sender<Response>) -> impl Future<Item
 
     // A future which completes once the entire input stream is
     // sent into the output sink.
-    output_sink.send_all(input_stream)
+    output_sink
+        .send_all(input_stream)
         // The combinators here eventually return the inner types
         // so they can be used further, but since we don't plan to
         // we'll simplify our return type to just ().

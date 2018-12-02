@@ -3,8 +3,8 @@
 
 use futures::sink;
 use futures::stream;
-use futures::sync::mpsc::{Sender as FuturesSender, Receiver as FuturesReceiver};
-use std::sync::mpsc::{Sender, Receiver};
+use futures::sync::mpsc::{Receiver as FuturesReceiver, Sender as FuturesSender};
+use std::sync::mpsc::{Receiver, Sender};
 
 /// Represents a request that is send to the worker for processing.
 ///

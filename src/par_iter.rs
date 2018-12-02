@@ -2,8 +2,8 @@
 //! parallel iterator to perform work.
 
 use harness::run_worker;
-use std::sync::mpsc::{channel, Sender, Receiver};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use worker::{compute_response, Request, Response, Worker};
 
 /// A `Worker` implementation which uses its own blocking threadpool
@@ -41,13 +41,11 @@ impl Worker for RayonWorker {
         // Similarly, we can't dispatch all the responses into the `Sender`
         // channel because it isn't `Sync`. Instead of using locks on the sender
         // we'll buffer all the responses and dispatch them at once.
-        let responses: Vec<_> = requests.into_par_iter()
-            .map(compute_response)
-            .collect();
+        let responses: Vec<_> = requests.into_par_iter().map(compute_response).collect();
 
         for resp in responses {
             if resp_tx.send(resp).is_err() {
-                break
+                break;
             }
         }
     }
