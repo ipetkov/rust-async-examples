@@ -11,7 +11,8 @@
 
 extern crate env_logger;
 extern crate futures;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate num_cpus;
 extern crate rand;
 extern crate rayon;

@@ -1,10 +1,10 @@
 //! This module defines the test harness which will drive each `Worker`
 //! implementation and time how long it takes to run.
 
-use rand::SeedableRng;
-use rand::distributions::Distribution;
 use rand::distributions::uniform::Uniform;
+use rand::distributions::Distribution;
 use rand::rngs::StdRng;
+use rand::SeedableRng;
 use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -53,11 +53,11 @@ pub fn run_worker<W, FS, S, R>(
     worker_rx: W::RequestReceiver,
     worker_tx: W::ResponseSender,
     my_rx: R,
-)
-    where W: Worker,
-          FS: 'static + Fn() -> S,
-          S: 'static + WorkerSender + Send,
-          R: 'static + WorkerReceiver + Send,
+) where
+    W: Worker,
+    FS: 'static + Fn() -> S,
+    S: 'static + WorkerSender + Send,
+    R: 'static + WorkerReceiver + Send,
 {
     const DATA_SIZE: usize = 128;
     const NUM_CLIENTS: usize = 4;
@@ -69,7 +69,8 @@ pub fn run_worker<W, FS, S, R>(
 
     let rng = &mut StdRng::from_seed(seed);
 
-    let data = (0..DATA_SIZE).into_iter()
+    let data = (0..DATA_SIZE)
+        .into_iter()
         .map(|_| RunData {
             sleep: Duration::from_millis(dist_sleep_ms.sample(rng)),
             x: dist_x.sample(rng),
@@ -85,7 +86,7 @@ pub fn run_worker<W, FS, S, R>(
         worker_tx,
         my_rx,
         NUM_CLIENTS,
-        data
+        data,
     );
 }
 
@@ -126,11 +127,11 @@ pub fn run_worker_with_values<W, FS, S, R>(
     mut my_rx: R,
     num_clients: usize,
     mut run_data: Vec<RunData>,
-)
-    where W: Worker,
-          FS: 'static + Fn() -> S,
-          S: 'static + WorkerSender + Send,
-          R: 'static + WorkerReceiver + Send,
+) where
+    W: Worker,
+    FS: 'static + Fn() -> S,
+    S: 'static + WorkerSender + Send,
+    R: 'static + WorkerReceiver + Send,
 {
     // Assert that we can split off our data to our clients evenly
     let run_data_len = run_data.len();
@@ -154,7 +155,7 @@ pub fn run_worker_with_values<W, FS, S, R>(
                 thread::sleep(data.sleep);
                 my_tx.send(Request {
                     x: data.x,
-                    y: data.y
+                    y: data.y,
                 });
             }
         });
@@ -180,7 +181,7 @@ pub fn run_worker_with_values<W, FS, S, R>(
                 match my_rx.recv() {
                     Some(Response { x, y, result }) => {
                         trace!("{}: x: {}, y: {}, result = {}", name, x, y, result);
-                    },
+                    }
                     None => break 'outer,
                 }
             }
